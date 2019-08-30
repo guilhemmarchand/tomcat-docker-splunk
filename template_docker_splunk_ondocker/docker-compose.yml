@@ -1,0 +1,56 @@
+version: '2'
+services:
+
+  tomcat-1:
+    image: tomcat:latest
+    hostname: tomcat-1
+    ports:
+      - "18080:8080"
+    environment:
+      JAVA_OPTS: "-javaagent:/opt/jolokia/jolokia-jvm-1.6.0-agent.jar=port=8778,host=0.0.0.0"
+    volumes:
+      - ../jolokia:/opt/jolokia
+
+  tomcat-2:
+    image: tomcat:latest
+    hostname: tomcat-2
+    ports:
+      - "18081:8080"
+    environment:
+      JAVA_OPTS: "-javaagent:/opt/jolokia/jolokia-jvm-1.6.0-agent.jar=port=8778,host=0.0.0.0"
+    volumes:
+      - ../jolokia:/opt/jolokia
+
+  telegraf:
+    image: telegraf:latest
+    restart: always
+    environment:
+      HOST_PROC: /rootfs/proc
+      HOST_SYS: /rootfs/sys
+      HOST_ETC: /rootfs/etc
+      SPLUNK_HEC_URL: "https://splunk:8088"
+      SPLUNK_HEC_TOKEN: "205d43f1-2a31-4e60-a8b3-327eda49944a"
+    hostname: telegraf
+    depends_on:
+      - tomcat-1
+    volumes:
+      - ../telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/rootfs/sys:ro
+      - /proc:/rootfs/proc:ro
+      - /etc:/rootfs/etc:ro
+
+  splunk:
+    image: splunk/splunk:latest
+    hostname: splunk
+    ports:
+      - "8000:8000"
+      - "8089:8089"
+      - "9997:9997"
+      - "8080:8080"
+    environment:
+      SPLUNK_START_ARGS: "--accept-license"
+      SPLUNK_PASSWORD: "ch@ngeM3"
+    volumes:
+      - ../splunk/TA-telegraf-tomcat:/opt/splunk/etc/apps/TA-telegraf-tomcat
+      - ../splunk/container_share:/opt/splunk/container_share
